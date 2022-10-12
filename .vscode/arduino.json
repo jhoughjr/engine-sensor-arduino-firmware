@@ -1,5 +1,5 @@
 {
     "sketch": "firmware.ino",
     "board": "arduino:samd:nano_33_iot",
-    "port": "COM10"
+    "port": "COM11"
 }

@@ -8,9 +8,11 @@ Sensation ICE Monitor
 #include <Arduino_LSM6DS3.h>
 #include "max6675.h" 
 
+bool hasNotifiedDisconnect = false;
+
 const char* firmware_version = "0.1.0";
 
-int usb_serial_baud = 115200;
+int usb_serial_baud = 9600;
 int adc_resolution = 12;
 
 byte SO = 12;
@@ -41,7 +43,7 @@ MAX6675 module(sck, CS, SO);
     const char* isLiveGUID = "44f2747f-693e-478c-8340-b251cebcf021";
 
     const char* batteryGUID = "eee4fd2d-db70-4cb8-b2cb-4a4dfcd232ef";
-    const char* regulatorGUID = "";
+    const char* regulatorGUID = "9CD11CDA-38E1-4552-9293-98D5293A7F51";
 
     const char* tachGUID = "3d94d295-f174-432c-9eec-8dbbace7c79d";
     const char* speedDiffGUID = "c01e3037-5e89-45d0-a2ac-4d68bd669eeb";
@@ -136,9 +138,12 @@ void setupServices() {
   BLE.setAdvertisedService(batteryService); 
 
   batteryService.addCharacteristic(batteryLevelChar); 
+  batteryService.addCharacteristic(regulatorLevelChar);
   BLE.addService(batteryService); // Add the battery service
 
   temperatureService.addCharacteristic(temperatureChar);
+  temperatureService.addCharacteristic(envTemperatureChar);
+
   BLE.addService(temperatureService);
 
   accelerationService.addCharacteristic(accelXChar);
@@ -154,6 +159,7 @@ void setupServices() {
   BLE.addService(gyroService);
 
   speedService.addCharacteristic(speedChar);
+  speedService.addCharacteristic(speedDiffChar);
   BLE.addService(speedService);
 
   tachService.addCharacteristic(tachChar);
@@ -162,18 +168,22 @@ void setupServices() {
   magneticService.addCharacteristic(magneticChar);
   BLE.addService(magneticService);
 
+  isLiveModeChar.writeValue(true);
   commandService.addCharacteristic(isLiveModeChar);
   BLE.addService(commandService);
 }
+
 void setup() {
-  Serial.begin(usb_serial_baud);    // initialize serial communication
+  delay(10000);
+  Serial.begin(115200);    // initialize serial communication
   Serial.print("baud rate ");
   Serial.println(usb_serial_baud);
 
   pinMode(LED_BUILTIN, OUTPUT); // initialize the built-in LED pin to indicate when a central is connected
   analogReadResolution(12); // 12 bit ADC on Nano 33 
-  pinMode(speedoPin,INPUT);
+   pinMode(speedoPin,INPUT);
   pinMode(batteryPin, INPUT);
+  pinMode(tachPin, INPUT);
   Serial.println("Arduino Nano 33 IoT");
   Serial.print("Firmware Version ");
   Serial.print(firmware_version);
@@ -181,19 +191,19 @@ void setup() {
   Serial.print("LED :");
   Serial.println(LED_BUILTIN);
   Serial.print("Speedo :");
-    Serial.println(speedoPin);
+  Serial.println(speedoPin);
 
-   Serial.print("Tacho :");
-    Serial.println(tachPin);
+  Serial.print("Tacho :");
+  Serial.println(tachPin);
   Serial.print("battery :");
-    Serial.println(batteryPin);
-    Serial.println("MAX6675 on ");
-    Serial.print("CS :");
-    Serial.print(CS);
-    Serial.print("SO: ");
-    Serial.print(SO);
-    Serial.print("SCK: ");
-    Serial.print(sck);
+  Serial.println(batteryPin);
+  Serial.println("MAX6675 on ");
+  Serial.print("CS :");
+  Serial.print(CS);
+  Serial.print("SO: ");
+  Serial.print(SO);
+  Serial.print("SCK: ");
+  Serial.print(sck);
 
   IMU.begin();
   Serial.println("LSM6DS3 initialized.");
@@ -232,8 +242,8 @@ void setup() {
   isLiveModeChar.writeValue(true);
 
   // interrupts for pulse counting/timing
-  attachInterrupt(speedoPin, speedIRQ, FALLING ); // pin 2 looks for HIGH to LOW change
-  attachInterrupt(tachPin, tachIRQ, RISING);
+   attachInterrupt(speedoPin, speedIRQ, FALLING ); // pin 2 looks for HIGH to LOW change
+  //  attachInterrupt(tachPin, tachIRQ, FALLING);
   
   // start advertising
   BLE.advertise();
@@ -241,9 +251,10 @@ void setup() {
 }
 
 void loop() {
-  BLEDevice central = BLE.central();
+  BLEDevice central = BLE.central(); 
 
   if (central) {
+    hasNotifiedDisconnect = false;
     Serial.print("Connected to central: ");
     Serial.println(central.address());
 
@@ -302,7 +313,10 @@ void loop() {
 
   }
   else {
+    if (!hasNotifiedDisconnect) {
+      hasNotifiedDisconnect = true;
         Serial.println("Bluetooth® device active, waiting for connections...");
+    }
   }
 }
 
@@ -313,7 +327,7 @@ void updateTermperature() {
      envTemperatureChar.writeValue(envTemp);
 }
 
-void updateGyros(){
+void updateGyros() {
 if (IMU.gyroscopeAvailable())
   {
 
@@ -379,7 +393,7 @@ void updateTach() {
   tachPulseCount = 0;
 }
 
-template <class X, class M, class N, class O, class Q>
-X map_Generic(X x, M in_min, N in_max, O out_min, Q out_max){
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
+// template <class X, class M, class N, class O, class Q>
+// X map_Generic(X x, M in_min, N in_max, O out_min, Q out_max){
+//   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+// }
