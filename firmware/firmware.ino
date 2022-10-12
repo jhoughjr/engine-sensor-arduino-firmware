@@ -18,9 +18,11 @@ int adc_resolution = 12;
 byte SO = 12;
 byte CS = 10;
 byte sck = 13;
-byte tachPin = A2;
-byte speedoPin = A1;
 byte batteryPin = A0;
+
+// interupt pins are 2, 3, 9, 10, 11, 13, A1, A5, A7
+byte tachPin = A5;
+byte speedoPin = A1;
 
 unsigned long speedPulseCount = 0;
 unsigned long tachPulseCount = 0;
@@ -116,8 +118,8 @@ unsigned long speedUpdateRate = 200;
 unsigned long tachUpfateRate = 200;
 
 unsigned long minSpeedPulseTime = 1;// 
-unsigned long lastSpeedPulse, speedPulse = 0;
-unsigned long speedInterval = 0;
+volatile unsigned long lastSpeedPulse, speedPulse = 0;
+volatile unsigned long speedInterval = 0;
 
 void speedIRQ() {
 
@@ -242,8 +244,8 @@ void setup() {
   isLiveModeChar.writeValue(true);
 
   // interrupts for pulse counting/timing
-   attachInterrupt(speedoPin, speedIRQ, FALLING ); // pin 2 looks for HIGH to LOW change
-  //  attachInterrupt(tachPin, tachIRQ, FALLING);
+   attachInterrupt(digitalPinToInterrupt(speedPin), speedIRQ, FALLING ); // pin 2 looks for HIGH to LOW change
+   attachInterrupt(digitalPinToInterrupt(tachPin), tachIRQ, FALLING);
   
   // start advertising
   BLE.advertise();
